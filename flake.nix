@@ -29,13 +29,6 @@
         ];
       };
 
-      devShell = pkgs.mkShell {
-        packages = with pkgs; [
-          go
-          delve
-        ];
-      };
-
       lintScript = pkgs.writeShellApplication {
         name = "run-linters";
         runtimeInputs = with pkgs; [
@@ -57,14 +50,29 @@
           go run ./cmd/fresh/main.go
         '';
       };
+
+      debugScript = pkgs.writeShellApplication {
+        name = "run-dlv";
+        runtimeInputs = with pkgs; [
+          go
+          delve
+        ];
+
+        text = ''
+          dlv debug --headless --listen=:2345 --api-version=2 ./cmd/fresh/main.go
+        '';
+      };
     in
     {
       packages.${system}.default = fresh;
-      devShells.${system}.default = devShell;
       apps.${system} = {
         lint = {
           type = "app";
           program = "${pkgs.lib.getExe lintScript}";
+        };
+        debug = {
+          type = "app";
+          program = "${pkgs.lib.getExe debugScript}";
         };
         fresh = {
           type = "app";
