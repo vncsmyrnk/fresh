@@ -19,10 +19,11 @@
             ./cmd/fresh/main.go
             ./internal
             ./go.mod
+            ./go.sum
           ];
         };
         version = "0.1.0";
-        vendorHash = null;
+        vendorHash = "sha256-fxxp7ECuMMmLw7L5/lPi7lfmJM2p+Te9AqXm5Xed3G0=";
 
         ldflags = [
           "-s -w -X github.com/vncsmyrnk/fresh/cmd.version=${version}"

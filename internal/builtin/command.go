@@ -17,3 +17,7 @@ func Lookup(cmd string) (Command, error) {
 	}
 	return nil, ErrBuiltinNotFound
 }
+
+func IsExit(cmd string) bool {
+	return cmd == "exit"
+}

@@ -1,21 +1,20 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
+	"golang.org/x/term"
+
 	fbuiltin "github.com/vncsmyrnk/fresh/internal/builtin"
 	fproc "github.com/vncsmyrnk/fresh/internal/proc"
-)
-
-const (
-	inputInitialSizeBytes = 1
-	inputLimitSizeBytes   = 1024
-	inputReallocFactor    = 2
 )
 
 func main() {
@@ -24,43 +23,73 @@ func main() {
 		os.Exit(0)
 	}
 
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		panic(err)
+	}
+	onExit := func() {
+		if err := term.Restore(int(os.Stdin.Fd()), oldState); err != nil {
+			fmt.Fprintln(os.Stderr, "fresh: failed to restore terminal state.")
+		}
+	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT|syscall.SIGKILL)
+	go func() {
+		<-sigChan
+		onExit()
+		os.Exit(1)
+	}()
+
+	t := term.NewTerminal(os.Stdin, "")
 	lastReturnStatus := fproc.StatusCodeSuccess
+
 	for {
-		promptExitStatus := ""
+		promptStatusCode := ""
 		if lastReturnStatus.Failed() {
-			promptExitStatus = lastReturnStatus.String()
+			promptStatusCode = lastReturnStatus.String()
 		}
-		fmt.Printf("%s> ", promptExitStatus)
+		prompt := fmt.Sprintf("%s> ", promptStatusCode)
+		t.SetPrompt(prompt)
 
-		i := 1
-		bInput := make([]byte, 0, inputLimitSizeBytes)
-		for {
-			b := make([]byte, i)
-			n, err := os.Stdin.Read(b)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "fresh: failed to read input.")
-				continue
-			} else if b[len(b)-1] == byte(10) || n < len(b) {
-				bInput = append(bInput, b[:n]...)
-				break
+		l, err := t.ReadLine()
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				fmt.Fprintln(os.Stderr, "fresh: failed to read input.")
+				os.Exit(1)
 			}
-			i *= inputReallocFactor
-			if i > inputLimitSizeBytes {
-				fmt.Fprintf(os.Stderr, "fresh: prompt size exceeded.")
-				continue
-			}
-			bInput = append(bInput, b...)
+			t = term.NewTerminal(os.Stdin, prompt)
+			fmt.Println("\r")
+			continue
 		}
 
-		input := string(bInput)
-		promptTrimmed := strings.Split(input, "\n")[0]
-		tokens := strings.Split(promptTrimmed, " ")
+		if l == "" {
+			continue
+		}
+
+		tokens := strings.Split(l, " ")
 
 		command := tokens[0]
 		arguments := tokens[1:]
 
-		if command == "" {
-			continue
+		if command == "exit" {
+			if fbuiltin.IsExit(command) {
+				switch len(arguments) {
+				case 0:
+					onExit()
+					os.Exit(int(lastReturnStatus))
+				case 1:
+					s, err := strconv.Atoi(arguments[0])
+					if err != nil {
+						fmt.Fprintln(os.Stderr, "fresh: exit expects one or no arguments.")
+						continue
+					}
+					onExit()
+					os.Exit(s)
+				default:
+					fmt.Fprintln(os.Stderr, "fresh: exit expects one or no arguments.")
+				}
+			}
 		}
 
 		if builtinCmd, err := fbuiltin.Lookup(command); err != fbuiltin.ErrBuiltinNotFound {
@@ -72,6 +101,7 @@ func main() {
 		}
 
 		cmd := exec.Command(command, arguments...)
+		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
@@ -87,12 +117,23 @@ func main() {
 			}
 		}()
 
+		if err := term.Restore(int(os.Stdin.Fd()), oldState); err != nil {
+			fmt.Fprintln(os.Stderr, "fresh: failed to restore terminal state.")
+		}
+
 		if err := cmd.Run(); err != nil && cmd.Process == nil {
 			fmt.Fprintf(os.Stderr, "fresh: unexpected error: %s\n", err)
 			lastReturnStatus = 1
 		}
 
+		_, err = term.MakeRaw(int(os.Stdin.Fd()))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "fresh: failed to enter raw mode: %s\n", err)
+			lastReturnStatus = 1
+		}
+
 		lastReturnStatus = fproc.StatusCode(cmd.ProcessState.ExitCode())
 		sigChan <- nil
+		fmt.Print("\r")
 	}
 }
