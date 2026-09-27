@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	fbuiltin "github.com/vncsmyrnk/fresh/internal/builtin"
 	fproc "github.com/vncsmyrnk/fresh/internal/proc"
@@ -72,11 +74,25 @@ func main() {
 		cmd := exec.Command(command, arguments...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT)
+		go func() {
+			<-sigChan
+			if cmd.Process != nil && cmd.ProcessState == nil {
+				if err := cmd.Process.Signal(os.Interrupt); err != nil {
+					fmt.Fprintf(os.Stderr, "fresh: process interruption failed: %s", err)
+				}
+				fmt.Println()
+			}
+		}()
+
 		if err := cmd.Run(); err != nil && cmd.Process == nil {
 			fmt.Fprintf(os.Stderr, "fresh: unexpected error: %s\n", err)
 			lastReturnStatus = 1
 		}
 
 		lastReturnStatus = fproc.StatusCode(cmd.ProcessState.ExitCode())
+		sigChan <- nil
 	}
 }
