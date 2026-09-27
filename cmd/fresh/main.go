@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	promptInitialSizeBytes = 1
-	promptLimitSizeBytes   = 1024
-	promptReallocFactor    = 2
+	inputInitialSizeBytes = 1
+	inputLimitSizeBytes   = 1024
+	inputReallocFactor    = 2
 )
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
 		fmt.Printf("%s> ", promptExitStatus)
 
 		i := 1
-		bPrompt := make([]byte, 0, promptLimitSizeBytes)
+		bInput := make([]byte, 0, inputLimitSizeBytes)
 		for {
 			b := make([]byte, i)
 			n, err := os.Stdin.Read(b)
@@ -41,19 +41,19 @@ func main() {
 				fmt.Fprintf(os.Stderr, "fresh: failed to read input.")
 				continue
 			} else if b[len(b)-1] == byte(10) || n < len(b) {
-				bPrompt = append(bPrompt, b[:n]...)
+				bInput = append(bInput, b[:n]...)
 				break
 			}
-			i *= promptReallocFactor
-			if i > promptLimitSizeBytes {
+			i *= inputReallocFactor
+			if i > inputLimitSizeBytes {
 				fmt.Fprintf(os.Stderr, "fresh: prompt size exceeded.")
 				continue
 			}
-			bPrompt = append(bPrompt, b...)
+			bInput = append(bInput, b...)
 		}
 
-		prompt := string(bPrompt)
-		promptTrimmed := strings.Split(prompt, "\n")[0]
+		input := string(bInput)
+		promptTrimmed := strings.Split(input, "\n")[0]
 		tokens := strings.Split(promptTrimmed, " ")
 
 		command := tokens[0]
