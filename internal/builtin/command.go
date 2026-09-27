@@ -7,7 +7,8 @@ type Command func([]string) error
 var ErrBuiltinNotFound = fmt.Errorf("builtin not found")
 
 var commands = map[string]Command{
-	"cd": cd,
+	"cd":   cd,
+	"exit": exit,
 }
 
 func Look(cmd string) (Command, error) {
