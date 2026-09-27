@@ -44,7 +44,7 @@ func main() {
 
 		if builtinCmd, err := fbuiltin.Look(command); err != fbuiltin.ErrBuiltinNotFound {
 			if errBuiltinCmd := builtinCmd(arguments); errBuiltinCmd != nil {
-				fmt.Fprintf(os.Stderr, "%s failed: %s\n", command, errBuiltinCmd)
+				fmt.Fprintf(os.Stderr, "fresh: %s failed: %s\n", command, errBuiltinCmd)
 				lastReturnStatus = 1
 			}
 			continue
@@ -53,8 +53,8 @@ func main() {
 		cmd := exec.Command(command, arguments...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)
+		if err := cmd.Run(); err != nil && cmd.Process == nil {
+			fmt.Fprintf(os.Stderr, "fresh: unexpected error: %s\n", err)
 			lastReturnStatus = 1
 		}
 
