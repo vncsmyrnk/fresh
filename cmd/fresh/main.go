@@ -11,7 +11,9 @@ import (
 )
 
 const (
-	statusCodeSuccess statusCode = 0
+	promptInitialSizeBytes = 1
+	promptLimitSizeBytes   = 1024
+	promptReallocFactor    = 2
 )
 
 func main() {
@@ -28,10 +30,27 @@ func main() {
 		}
 		fmt.Printf("%s> ", promptExitStatus)
 
-		b := make([]byte, 256)
-		_, _ = os.Stdin.Read(b)
+		i := 1
+		bPrompt := make([]byte, 0, promptLimitSizeBytes)
+		for {
+			b := make([]byte, i)
+			n, err := os.Stdin.Read(b)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "fresh: failed to read input.")
+				continue
+			} else if b[len(b)-1] == byte(10) || n < len(b) {
+				bPrompt = append(bPrompt, b[:n]...)
+				break
+			}
+			i *= promptReallocFactor
+			if i > promptLimitSizeBytes {
+				fmt.Fprintf(os.Stderr, "fresh: prompt size exceeded.")
+				continue
+			}
+			bPrompt = append(bPrompt, b...)
+		}
 
-		prompt := string(b)
+		prompt := string(bPrompt)
 		promptTrimmed := strings.Split(prompt, "\n")[0]
 		tokens := strings.Split(promptTrimmed, " ")
 
