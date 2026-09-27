@@ -6,22 +6,13 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/vncsmyrnk/fresh/internal/builtin"
+	fbuiltin "github.com/vncsmyrnk/fresh/internal/builtin"
+	fproc "github.com/vncsmyrnk/fresh/internal/proc"
 )
-
-type statusCode uint32
 
 const (
 	statusCodeSuccess statusCode = 0
 )
-
-func (s statusCode) failed() bool {
-	return s > 0
-}
-
-func (s statusCode) string() string {
-	return fmt.Sprintf("%d", s)
-}
 
 func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
@@ -29,11 +20,11 @@ func main() {
 		os.Exit(0)
 	}
 
-	lastReturnStatus := statusCodeSuccess
+	lastReturnStatus := fproc.StatusCodeSuccess
 	for {
 		promptExitStatus := ""
-		if lastReturnStatus.failed() {
-			promptExitStatus = lastReturnStatus.string()
+		if lastReturnStatus.Failed() {
+			promptExitStatus = lastReturnStatus.String()
 		}
 		fmt.Printf("%s> ", promptExitStatus)
 
@@ -51,7 +42,7 @@ func main() {
 			continue
 		}
 
-		if builtinCmd, err := builtin.Look(command); err != builtin.ErrBuiltinNotFound {
+		if builtinCmd, err := fbuiltin.Look(command); err != fbuiltin.ErrBuiltinNotFound {
 			if errBuiltinCmd := builtinCmd(arguments); errBuiltinCmd != nil {
 				fmt.Fprintf(os.Stderr, "%s failed: %s\n", command, errBuiltinCmd)
 				lastReturnStatus = 1
@@ -67,6 +58,6 @@ func main() {
 			lastReturnStatus = 1
 		}
 
-		lastReturnStatus = statusCode(cmd.ProcessState.ExitCode())
+		lastReturnStatus = fproc.StatusCode(cmd.ProcessState.ExitCode())
 	}
 }
