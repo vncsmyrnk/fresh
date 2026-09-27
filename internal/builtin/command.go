@@ -11,7 +11,7 @@ var commands = map[string]Command{
 	"exit": exit,
 }
 
-func Look(cmd string) (Command, error) {
+func Lookup(cmd string) (Command, error) {
 	if c, ok := commands[cmd]; ok {
 		return c, nil
 	}

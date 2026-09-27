@@ -63,7 +63,7 @@ func main() {
 			continue
 		}
 
-		if builtinCmd, err := fbuiltin.Look(command); err != fbuiltin.ErrBuiltinNotFound {
+		if builtinCmd, err := fbuiltin.Lookup(command); err != fbuiltin.ErrBuiltinNotFound {
 			if errBuiltinCmd := builtinCmd(arguments); errBuiltinCmd != nil {
 				fmt.Fprintf(os.Stderr, "fresh: %s failed: %s\n", command, errBuiltinCmd)
 				lastReturnStatus = 1
