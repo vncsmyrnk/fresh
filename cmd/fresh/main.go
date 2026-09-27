@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/vncsmyrnk/fresh/internal/builtin"
 )
 
 type statusCode uint32
@@ -44,6 +46,18 @@ func main() {
 
 		command := tokens[0]
 		arguments := tokens[1:]
+
+		if command == "" {
+			continue
+		}
+
+		if builtinCmd, err := builtin.Look(command); err != builtin.ErrBuiltinNotFound {
+			if errBuiltinCmd := builtinCmd(arguments); errBuiltinCmd != nil {
+				fmt.Fprintf(os.Stderr, "%s failed: %s\n", command, errBuiltinCmd)
+				lastReturnStatus = 1
+			}
+			continue
+		}
 
 		cmd := exec.Command(command, arguments...)
 		cmd.Stdout = os.Stdout

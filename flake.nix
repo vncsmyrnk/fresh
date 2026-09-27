@@ -16,6 +16,7 @@
         src = pkgs.lib.fileset.toSource {
           root = ./.;
           fileset = pkgs.lib.fileset.unions [
+            ./cmd/fresh/main.go
             ./internal
             ./go.mod
           ];
